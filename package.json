@@ -1,0 +1,24 @@
+{
+  "name": "rinha-de-backend-2024-q1",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Desafio hype da rinha de 2024",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/leonardoksn/rinha-de-backend-2024-q1"
+  },
+  "keywords": [
+    "rinha"
+  ],
+  "author": "Leonardo Nunes",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2"
+  }
+}
