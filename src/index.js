@@ -80,8 +80,39 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
 app.get('/clientes/:id/extrato', async (req, res) => {
 
     const id = req.params.id;
-    const { rows } = await db.query("SELECT * FROM transacoes WHERE cliente_id = $1", [id]);
-    return res.send(rows);
+    const extract = await db.query(`
+    SELECT A.saldo, A.limite, 
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'valor', B.valor,
+                'tipo', B.tipo,
+                'descricao', B.descricao,
+                'realizada_em', B.realizada_em
+            )
+        ) AS transacoes
+    FROM clientes A
+    LEFT JOIN transacoes B ON A.id = B.cliente_id
+    WHERE A.id = $1
+    
+    GROUP BY A.saldo, A.limite;
+    `, [id])
+        .then(({ rows }) => rows[0])
+        ;
+    if (!extract) {
+        return res.status(404).send("Client not found")
+    }
+
+    const response = {
+        saldo: {
+            total: extract.saldo,
+            data_extrato: new Date(),
+            limite: extract.limite
+        },
+        ultimas_transacoes: extract.transacoes
+    }
+
+
+    return res.send(response);
 
 })
 
