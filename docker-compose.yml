@@ -2,6 +2,7 @@ services:
  
   db:
     image: postgres
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_PASSWORD: 1234
@@ -9,6 +10,17 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  app:
+    image: node:20-alpine3.18
+    environment:
+      - POSTGRES_HOST=postgres
+    container_name: app
+    build:
+      dockerfile: ./Dockerfile
+    ports:
+      - "9999:9999"
+    depends_on:
+      - db
  
 volumes:
   pgdata:
