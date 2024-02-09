@@ -43,7 +43,22 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
 
         await client.query('BEGIN')
 
-        await client.query("INSERT INTO transacoes (valor, tipo, descricao) VALUES ($1, $2, $3)", [body.valor, body.tipo, body.descricao]);
+        await client.query(`
+            insert into 
+            transacoes (
+                valor, 
+                tipo, 
+                descricao, 
+                cliente_id
+            )
+            values
+            (
+                $1, 
+                $2, 
+                $3, 
+                $4
+            );
+        `, [body.valor, body.tipo, body.descricao, id]);
 
         await client.query("UPDATE clientes SET saldo = $1 WHERE id = $2", [newBalance, id]);
 
@@ -58,6 +73,15 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
         "saldo": newBalance
     })
 
+
+})
+
+
+app.get('/clientes/:id/extrato', async (req, res) => {
+
+    const id = req.params.id;
+    const { rows } = await db.query("SELECT * FROM transacoes WHERE cliente_id = $1", [id]);
+    return res.send(rows);
 
 })
 

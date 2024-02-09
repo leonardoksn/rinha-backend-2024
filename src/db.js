@@ -16,20 +16,26 @@ pool.once('connect', () => {
     log('Conectado ao postgres');
 
     return pool.query(`
+
+    -- Criar tabela clientes
+    CREATE TABLE IF NOT EXISTS clientes (
+        id SERIAL PRIMARY KEY,
+        limite INT NOT NULL,
+        saldo INT DEFAULT 0,
+        nome VARCHAR(50) NOT NULL
+    );
+    
+    
+    -- Criar tabela transacoes
     CREATE TABLE IF NOT EXISTS transacoes (
         id SERIAL PRIMARY KEY,
         valor INT NOT NULL,
         tipo VARCHAR(1) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        descricao VARCHAR(10) NOT NULL
-        );
-
-    CREATE TABLE IF NOT EXISTS clientes (
-        id SERIAL PRIMARY KEY,
-        limite INT NOT NULL,
-        SALDO INT DEFAULT 0,
-        nome VARCHAR(50) NOT NULL
-        );
+        realizada_em TIMESTAMP NOT NULL DEFAULT NOW(),
+        descricao VARCHAR(10) NOT NULL,
+        cliente_id INT NOT NULL,
+        FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    );
 
     `)
 
@@ -50,3 +56,5 @@ async function connect() {
 connect();
 
 export default pool
+
+   
