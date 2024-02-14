@@ -18,6 +18,6 @@ RUN ls -a
 ENV TZ=America/Sao_Paulo \
     DEBIAN_FRONTEND=noninteractive
 
-EXPOSE 9999
+EXPOSE 3030
 
 CMD ["node", "index.js"]
