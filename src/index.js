@@ -96,8 +96,12 @@ app.get('/clientes/:id/extrato', async (req, res) => {
     
     GROUP BY A.saldo, A.limite;
     `, [id])
-        .then(({ rows }) => rows[0])
-        ;
+        .then(({ rows }) => rows[0]);
+    
+    if(!Object.values(extract.transacoes[0])[0]){
+        extract.transacoes = [] 
+    }
+        
     if (!extract) {
         return res.status(404).send("Client not found")
     }
