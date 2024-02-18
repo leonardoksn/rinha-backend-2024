@@ -16,27 +16,27 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
     }
 
     const { body } = req;
+
+    if (typeof body.descricao !== "string" ||
+        typeof body.valor !== "number" ||
+        typeof body.tipo !== "string"
+    ) {
+        return res.status(400).send("Body not found")
+    }
+
     //Verify body.valor is int that is greater than 0
-    if (!Number.isInteger(body.valor) || body.valor <= 0) {
-        return res.status(404).send("Body not found")
+    if (!Number.isInteger(body?.valor) || body?.valor <= 0) {
+        return res.status(400).send("Body not found")
     }
     //Verify body.tipo is string "c" or "d"
-    if (body.tipo !== "c" && body.tipo !== "d") {
-        return res.status(404).send("Body not found")
+    if (body?.tipo !== "c" && body?.tipo !== "d") {
+        return res.status(400).send("Body not found")
     }
     //Verify body.descricao is string that hava 1 a 10 caracters
-    if (body.descricao.length < 1 || body.descricao.length > 10) {
-        return res.status(404).send("Body not found")
+    if (body?.descricao?.length < 1 || body?.descricao?.length > 10) {
+        return res.status(400).send("Body not found")
     }
-    // const { rows } = await db.query("INSERT INTO transacoes (valor, tipo, descricao) VALUES ($1, $2, $3) RETURNING *", [body.valor, body.tipo, body.descricao]);
-    const newBalance = costumer.saldo - body.valor;
 
-    if (body.tipo === "d") {
-        const isNegative = (newBalance + costumer.limite) < 0;
-        if (isNegative) {
-            return res.status(422).send()
-        }
-    }
     const client = await db.connect()
 
     try {
