@@ -107,7 +107,11 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
 app.get('/clientes/:id/extrato', async (req, res) => {
 
     const id = req.params.id;
-    const extract = await db.query(`
+    let client
+    try {
+        client = await db.connect()
+
+        const extract = await client.query(`
     SELECT A.saldo, A.limite, 
         JSON_AGG(
             JSON_BUILD_OBJECT(
@@ -118,32 +122,41 @@ app.get('/clientes/:id/extrato', async (req, res) => {
             )
         ) AS transacoes
     FROM clientes A
-    LEFT JOIN transacoes B ON A.id = B.cliente_id
+    LEFT JOIN (
+        SELECT *
+        FROM transacoes
+        WHERE cliente_id = $1
+        ORDER BY realizada_em DESC
+        LIMIT 10
+    ) B ON A.id = B.cliente_id
     WHERE A.id = $1
-    
-    GROUP BY A.saldo, A.limite;
+     GROUP BY A.saldo, A.limite;
     `, [id])
-        .then(({ rows }) => rows[0]);
-    
-    if(!Object.values(extract.transacoes[0])[0]){
-        extract.transacoes = [] 
-    }
-        
-    if (!extract) {
-        return res.status(404).send("Client not found")
-    }
+            .then(({ rows }) => rows[0]);
 
-    const response = {
-        saldo: {
-            total: extract.saldo,
-            data_extrato: new Date(),
-            limite: extract.limite
-        },
-        ultimas_transacoes: extract.transacoes
+        if (!extract) {
+            return res.status(404).send("Client not found")
+        }
+        if (!(extract.transacoes?.[0].valor)) {
+            extract.transacoes = [];
+        }
+
+        const response = {
+            saldo: {
+                total: extract.saldo,
+                data_extrato: new Date(),
+                limite: extract.limite
+            },
+            ultimas_transacoes: extract.transacoes
+        }
+        return res.send(response);
+
+    } catch (error) {
+        return res.status(500).send(error?.message)
+    } finally {
+        if (client)
+            client.release()
     }
-
-
-    return res.send(response);
 
 })
 
