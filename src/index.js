@@ -21,20 +21,20 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
         typeof body.valor !== "number" ||
         typeof body.tipo !== "string"
     ) {
-        return res.status(400).send("Body not found")
+        return res.status(422).send()
     }
 
     //Verify body.valor is int that is greater than 0
     if (!Number.isInteger(body?.valor) || body?.valor <= 0) {
-        return res.status(400).send("Body not found")
+        return res.status(422).send()
     }
     //Verify body.tipo is string "c" or "d"
     if (body?.tipo !== "c" && body?.tipo !== "d") {
-        return res.status(400).send("Body not found")
+        return res.status(422).send()
     }
     //Verify body.descricao is string that hava 1 a 10 caracters
     if (body?.descricao?.length < 1 || body?.descricao?.length > 10) {
-        return res.status(400).send("Body not found")
+        return res.status(422).send()
     }
 
     const client = await db.connect()
