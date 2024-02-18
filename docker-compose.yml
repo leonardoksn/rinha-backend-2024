@@ -3,15 +3,20 @@ services:
     image: postgres
     container_name: postgres
     restart: always
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: 1234
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: 150M
-  api01:
-    image: node:20-alpine3.18
+          cpus: '0.45'
+          memory: 140M
+  api01: &api
+    hostname: api01
     environment:
       - POSTGRES_HOST=postgres
     container_name: api01
@@ -22,22 +27,15 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.4'
+          cpus: '0.45'
           memory: 200M
   api02:
-    image: node:20-alpine3.18
+    <<: *api
+    hostname: api02
     environment:
       - POSTGRES_HOST=postgres
     container_name: api02
-    build:
-      dockerfile: ./Dockerfile
-    depends_on:
-      - db
-    deploy:
-      resources:
-        limits:
-          cpus: '0.4'
-          memory: 200M
+    
   nginx:
     image: nginx:latest
     volumes:
@@ -50,8 +48,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
-          memory: 100M
+          cpus: "0.15"
+          memory: "10MB"
  
 volumes:
   pgdata:
