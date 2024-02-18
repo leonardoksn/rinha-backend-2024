@@ -10,57 +10,163 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
 
     const id = req.params.id
 
-    const isFind = await findClient(id)
-    if (!isFind) {
+    const costumer = await findClient(id)
+    if (!costumer) {
         return res.status(404).send("Client not found")
     }
 
     const { body } = req;
-    console.log(body)
-    //Verify body.valor is int that is greater than 0
-    if (!Number.isInteger(body.valor) || body.valor <= 0) {
-        return res.status(404).send("Body not found")
-    }
-    //Verify body.tipo is string "c" or "d"
-    if (body.tipo !== "c" && body.tipo !== "d") {
-        return res.status(404).send("Body not found")
-    }
-    //Verify body.descricao is string that hava 1 a 10 caracters
-    if (body.descricao.length < 1 || body.descricao.length > 10) {
-        return res.status(404).send("Body not found")
+
+    if (typeof body.descricao !== "string" ||
+        typeof body.valor !== "number" ||
+        typeof body.tipo !== "string"
+    ) {
+        return res.status(422).send()
     }
 
-    res.status(200).send({
-        "limite": 100000,
-        "saldo": -9098
-    })
+    //Verify body.valor is int that is greater than 0
+    if (!Number.isInteger(body?.valor) || body?.valor <= 0) {
+        return res.status(422).send()
+    }
+    //Verify body.tipo is string "c" or "d"
+    if (body?.tipo !== "c" && body?.tipo !== "d") {
+        return res.status(422).send()
+    }
+    //Verify body.descricao is string that hava 1 a 10 caracters
+    if (body?.descricao?.length < 1 || body?.descricao?.length > 10) {
+        return res.status(422).send()
+    }
+
+    const client = await db.connect()
+    let value;
+    try {
+
+        await client.query('BEGIN')
+
+        if (body?.tipo === "c") {
+            await client.query(`
+            UPDATE clientes
+            SET
+                saldo = saldo + $1
+            WHERE
+                id = $2
+            RETURNING
+                limite,
+                saldo;
+            `, [body.valor, id])
+                .then(({ rows }) => value = rows[0]);
+
+        }
+
+        if (body?.tipo === "d") {
+            await client.query(`
+            UPDATE clientes
+			SET saldo = saldo - $1
+			WHERE id = $2
+			AND abs(saldo - $3) <= limite
+			RETURNING limite, saldo;
+            `, [body.valor, id, body?.valor])
+                .then(({ rows }) => value = rows[0]);
+        }
+        if (!value) {
+            await client.query('ROLLBACK')
+
+            return res.status(422).send()
+        }
+
+        await client.query(`
+            insert into 
+            transacoes (
+                valor, 
+                tipo, 
+                descricao, 
+                cliente_id
+            )
+            values
+            (
+                $1, 
+                $2, 
+                $3, 
+                $4
+            );
+        `, [body.valor, body.tipo, body.descricao, id]);
+
+        await client.query('COMMIT')
+    } catch (error) {
+        await client.query('ROLLBACK')
+        return res.status(500).send(error.message)
+    } finally {
+        client.release()
+    }
+
+    return res.status(200).send(value)
+
+})
+
+
+app.get('/clientes/:id/extrato', async (req, res) => {
+
+    const id = req.params.id;
+    let client
+    try {
+        client = await db.connect()
+
+        const extract = await client.query(`
+    SELECT A.saldo, A.limite, 
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'valor', B.valor,
+                'tipo', B.tipo,
+                'descricao', B.descricao,
+                'realizada_em', B.realizada_em
+            )
+        ) AS transacoes
+    FROM clientes A
+    LEFT JOIN (
+        SELECT *
+        FROM transacoes
+        WHERE cliente_id = $1
+        ORDER BY realizada_em DESC
+        LIMIT 10
+    ) B ON A.id = B.cliente_id
+    WHERE A.id = $1
+     GROUP BY A.saldo, A.limite;
+    `, [id])
+            .then(({ rows }) => rows[0]);
+
+        if (!extract) {
+            return res.status(404).send("Client not found")
+        }
+        if (!(extract.transacoes?.[0].valor)) {
+            extract.transacoes = [];
+        }
+
+        const response = {
+            saldo: {
+                total: extract.saldo,
+                data_extrato: new Date(),
+                limite: extract.limite
+            },
+            ultimas_transacoes: extract.transacoes
+        }
+        return res.send(response);
+
+    } catch (error) {
+        return res.status(500).send(error?.message)
+    } finally {
+        if (client)
+            client.release()
+    }
+
 })
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
 })
 
-const criarTabela = async () => {
-    try {
-        const query = `
-        CREATE TABLE IF NOT EXISTS transacoes (
-          id SERIAL PRIMARY KEY,
-          valor INT NOT NULL,
-          tipo VARCHAR(1) NOT NULL,
-          descricao VARCHAR(10) NOT NULL
-        )
-      `;
-        await db.query(query);
-        console.log('Tabela criada com sucesso!');
-    } catch (error) {
-        console.error('Erro ao criar tabela:', error);
-    } finally {
-        await db.end();
-    }
-};
-
-criarTabela();
 
 async function findClient(id) {
-    return id
+    const { rows } = await db.query("SELECT LIMITE, SALDO FROM clientes WHERE id = $1", [id]);
+    return rows[0]
+
 }
