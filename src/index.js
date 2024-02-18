@@ -38,10 +38,41 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
     }
 
     const client = await db.connect()
-
+    let value;
     try {
 
         await client.query('BEGIN')
+
+        if (body?.tipo === "c") {
+            await client.query(`
+            UPDATE clientes
+            SET
+                saldo = saldo + $1
+            WHERE
+                id = $2
+            RETURNING
+                limite,
+                saldo;
+            `, [body.valor, id])
+                .then(({ rows }) => value = rows[0]);
+
+        }
+
+        if (body?.tipo === "d") {
+            await client.query(`
+            UPDATE clientes
+			SET saldo = saldo - $1
+			WHERE id = $2
+			AND abs(saldo - $3) <= limite
+			RETURNING limite, saldo;
+            `, [body.valor, id, body?.valor])
+                .then(({ rows }) => value = rows[0]);
+        }
+        if (!value) {
+            await client.query('ROLLBACK')
+
+            return res.status(422).send()
+        }
 
         await client.query(`
             insert into 
@@ -60,19 +91,15 @@ app.post("/clientes/:id/transacoes", async (req, res) => {
             );
         `, [body.valor, body.tipo, body.descricao, id]);
 
-        await client.query("UPDATE clientes SET saldo = $1 WHERE id = $2", [newBalance, id]);
-
         await client.query('COMMIT')
     } catch (error) {
-
         await client.query('ROLLBACK')
         return res.status(500).send(error.message)
+    } finally {
+        client.release()
     }
-    res.status(200).send({
-        "limite": costumer.limite,
-        "saldo": newBalance
-    })
 
+    return res.status(200).send(value)
 
 })
 
