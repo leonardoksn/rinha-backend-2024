@@ -20,4 +20,4 @@ ENV TZ=America/Sao_Paulo \
 
 EXPOSE 3030
 
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
